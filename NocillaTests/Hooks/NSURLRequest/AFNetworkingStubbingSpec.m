@@ -6,13 +6,11 @@
 
 SPEC_BEGIN(AFNetworkingStubbingSpec)
 
-beforeAll(^{
+beforeEach(^{
     [[LSNocilla sharedInstance] start];
 });
-afterAll(^{
-    [[LSNocilla sharedInstance] stop];
-});
 afterEach(^{
+    [[LSNocilla sharedInstance] stop];
     [[LSNocilla sharedInstance] clearStubs];
 });
 
@@ -43,6 +41,29 @@ context(@"AFNetworking", ^{
         [[[operation.response.allHeaderFields objectForKey:@"Content-Type"] should] equal:@"text/plain"];
     });
     
+    it(@"should stub the request with a raw reponse", ^{
+        stubRequest(@"POST", @"https://example.com/say-hello").
+        withHeader(@"Content-Type", @"text/plain").
+        withHeader(@"X-MY-AWESOME-HEADER", @"sisisi").
+        withBody(@"Adios!").
+        andReturnRawResponse([@"HTTP/1.1 200 OK\nContent-Type: text/plain\n\nhola" dataUsingEncoding:NSUTF8StringEncoding]);
+        
+        NSURL *url = [NSURL URLWithString:@"https://example.com/say-hello"];
+        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+        [request setHTTPMethod:@"POST"];
+        [request setValue:@"text/plain" forHTTPHeaderField:@"Content-Type"];
+        [request setValue:@"sisisi" forHTTPHeaderField:@"X-MY-AWESOME-HEADER"];
+        [request setHTTPBody:[@"Adios!" dataUsingEncoding:NSASCIIStringEncoding]];
+        AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
+        [operation start];
+        
+        [operation waitUntilFinished];
+        
+        [operation.error shouldBeNil];
+        [[operation.responseString should] equal:@"hola"];
+        [[theValue(operation.response.statusCode) should] equal:theValue(200)];
+        [[[operation.response.allHeaderFields objectForKey:@"Content-Type"] should] equal:@"text/plain"];
+    });
 
     it(@"should have the same result as a real HTTP request", ^{
         NSURL *url = [NSURL URLWithString:@"http://localhost:12345/say-hello"];        
@@ -133,6 +154,75 @@ context(@"AFNetworking", ^{
         
         [[[operation.response.allHeaderFields objectForKey:@"Content-Type"] shouldEventually] equal:@"text/plain"];
         [operation.error shouldBeNil];
+    });
+
+    it(@"stubs a request with an error", ^{
+        NSError *error = [NSError errorWithDomain:@"com.luisobo.nocilla" code:123 userInfo:@{NSLocalizedDescriptionKey:@"Failing, failing... 1, 2, 3..."}];
+
+        stubRequest(@"POST", @"https://example.com/say-hello").
+        withHeaders(@{ @"X-MY-AWESOME-HEADER": @"sisisi", @"Content-Type": @"text/plain" }).
+        withBody(@"Adios!").
+        andFailWithError(error);
+
+        NSURL *url = [NSURL URLWithString:@"https://example.com/say-hello"];
+        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+        [request setHTTPMethod:@"POST"];
+        [request setValue:@"text/plain" forHTTPHeaderField:@"Content-Type"];
+        [request setValue:@"sisisi" forHTTPHeaderField:@"X-MY-AWESOME-HEADER"];
+        [request setHTTPBody:[@"Adios!" dataUsingEncoding:NSASCIIStringEncoding]];
+        AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
+
+
+        __block BOOL succeed = NO;
+        __block BOOL failed = NO;
+        __block NSError *capturedError = nil;
+        [operation setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
+            succeed = YES;
+        } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+            capturedError = error;
+            failed = YES;
+        }];
+
+        [operation start];
+
+        [[expectFutureValue(theValue(failed)) shouldEventually] beYes];
+        [[capturedError should] equal:[NSError errorWithDomain:@"com.luisobo.nocilla" code:123 userInfo:@{NSLocalizedDescriptionKey:@"Failing, failing... 1, 2, 3...",
+                                         @"NSErrorFailingURLKey":[NSURL URLWithString:@"https://example.com/say-hello"],
+                                         @"NSErrorFailingURLStringKey":@"https://example.com/say-hello"
+                                         }]];
+
+        [[operation.error should] equal:[NSError errorWithDomain:@"com.luisobo.nocilla" code:123 userInfo:@{NSLocalizedDescriptionKey:@"Failing, failing... 1, 2, 3...",
+                                                                      @"NSErrorFailingURLKey":[NSURL URLWithString:@"https://example.com/say-hello"],
+                                                                      @"NSErrorFailingURLStringKey":@"https://example.com/say-hello"
+                                                                      }]];
+    });
+
+    it(@"stubs the request with data", ^{
+        NSData *requestData = [@"data123" dataUsingEncoding:NSUTF8StringEncoding];
+        stubRequest(@"POST", @"https://example.com/say-hello").
+        withHeader(@"Content-Type", @"text/plain").
+        withHeader(@"X-MY-AWESOME-HEADER", @"sisisi").
+        withBody(requestData).
+        andReturn(200).
+        withHeader(@"Content-Type", @"text/plain").
+        withBody([@"eeeeooo" dataUsingEncoding:NSUTF8StringEncoding]);
+
+        NSURL *url = [NSURL URLWithString:@"https://example.com/say-hello"];
+        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+        [request setHTTPMethod:@"POST"];
+        [request setValue:@"text/plain" forHTTPHeaderField:@"Content-Type"];
+        [request setValue:@"sisisi" forHTTPHeaderField:@"X-MY-AWESOME-HEADER"];
+        [request setHTTPBody:requestData];
+        AFHTTPRequestOperation *operation = [[AFHTTPRequestOperation alloc] initWithRequest:request];
+        [operation start];
+
+        [operation waitUntilFinished];
+
+        [operation.error shouldBeNil];
+        [[operation.responseString should] equal:@"eeeeooo"];
+        [[theValue(operation.response.statusCode) should] equal:theValue(200)];
+        [[[operation.response.allHeaderFields objectForKey:@"Content-Type"] should] equal:@"text/plain"];
+
     });
 });
 SPEC_END
