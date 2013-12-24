@@ -24,35 +24,23 @@
 - (void)startLoading {
     NSURLRequest* request = [self request];
 	id<NSURLProtocolClient> client = [self client];
-    
-    LSStubRequest *stubbedRequest = nil;
-    LSStubResponse* stubbedResponse = nil;
-    NSArray* requests = [LSNocilla sharedInstance].stubbedRequests;
-    
-    for(LSStubRequest *someStubbedRequest in requests) {
-        if ([someStubbedRequest matchesRequest:request]) {
-            stubbedRequest = someStubbedRequest;
-            stubbedResponse = stubbedRequest.response;
-            break;
-        }
-    }
-    
-    NSHTTPURLResponse* urlResponse = nil;
-    NSData *body = nil;
-    if (stubbedRequest) {
-        urlResponse = [[NSHTTPURLResponse alloc] initWithURL:request.URL
-                                                                 statusCode:stubbedResponse.statusCode
-                                                               headerFields:stubbedResponse.headers
-                                                                requestTime:0];
-        body = stubbedResponse.body;
+
+    LSStubResponse* stubbedResponse = [[LSNocilla sharedInstance] responseForRequest:request];
+
+    if (stubbedResponse.shouldFail) {
+        [client URLProtocol:self didFailWithError:stubbedResponse.error];
     } else {
-        urlResponse = [[NSHTTPURLResponse alloc] initWithURL:request.URL statusCode:500 headerFields:@{ @"X-Nocilla" : @"Unexpected Request" } requestTime:0];
-        body = [[NSString stringWithFormat:@"An unexcepted HTTP request was fired.\n\nUse this snippet to stub the request:\n%@\n", [request toNocillaDSL]] dataUsingEncoding:NSUTF8StringEncoding];
+        NSHTTPURLResponse* urlResponse = [[NSHTTPURLResponse alloc] initWithURL:request.URL
+                                                  statusCode:stubbedResponse.statusCode
+                                                headerFields:stubbedResponse.headers
+                                                 requestTime:0];
+        NSData *body = stubbedResponse.body;
+
+        [client URLProtocol:self didReceiveResponse:urlResponse
+         cacheStoragePolicy:NSURLCacheStorageNotAllowed];
+        [client URLProtocol:self didLoadData:body];
+        [client URLProtocolDidFinishLoading:self];
     }
-    [client URLProtocol:self didReceiveResponse:urlResponse
-     cacheStoragePolicy:NSURLCacheStorageNotAllowed];
-    [client URLProtocol:self didLoadData:body];
-    [client URLProtocolDidFinishLoading:self];
 }
 
 - (void)stopLoading {

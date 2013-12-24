@@ -2,6 +2,9 @@
 #import "Nocilla.h"
 
 @class LSStubRequest;
+@class LSStubResponse;
+@class LSHTTPClientHook;
+@protocol LSHTTPRequest;
 
 extern NSString * const LSUnexpectedRequest;
 
@@ -13,4 +16,8 @@ extern NSString * const LSUnexpectedRequest;
 - (void)stop;
 - (void)addStubbedRequest:(LSStubRequest *)request;
 - (void)clearStubs;
+
+- (void)registerHook:(LSHTTPClientHook *)hook;
+
+- (LSStubResponse *)responseForRequest:(id<LSHTTPRequest>)request;
 @end

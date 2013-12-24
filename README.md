@@ -1,4 +1,4 @@
-# Nocilla
+# Nocilla [![](https://api.travis-ci.org/luisobo/Nocilla.png?branch=master)](https://travis-ci.org/luisobo/Nocilla)
 Stunning HTTP stubbing for iOS and OS X. Testing HTTP requests has never been easier.
 
 This library was inspired by [WebMock](https://github.com/bblimke/webmock) and it's using [this approach](http://www.infinite-loop.dk/blog/2011/09/using-nsurlprotocol-for-injecting-test-data/) to stub the requests.
@@ -6,18 +6,33 @@ This library was inspired by [WebMock](https://github.com/bblimke/webmock) and i
 ## Features
 * Stub HTTP and HTTPS requests in your unit tests.
 * Awesome DSL that will improve the readability and maintainability of your tests.
+* NEW! Match requests with regular expressions.
+* NEW! Stub requests with errors.
 * Tested.
 * Fast.
 * Extendable to support more HTTP libraries.
-* Huge community, we overflowed the number of Stars and Forks in GitHub (meh, not really).
 
-## Limitations
-* At this moment only works with requests made with `NSURLConnection`, but it's possible to extend Nocilla to support more HTTP libraries. Nocilla has been tested with [AFNetworking](https://github.com/AFNetworking/AFNetworking) and [MKNetworkKit](https://github.com/MugunthKumar/MKNetworkKit)
+### EXPERIMENTAL: Support for ASIHTTPRequest
+At this moment Nocilla supports stubbing request made with ASIHTTPRequest. This feature is experimental for the moment and more testing in the wild needs to be done. It has been tested with the classes `ASIHTTPRequest` and `ASIFormDataRequest`. It has _not_ been tested for `ASIWebPageRequest`, `ASICloudFilesRequest` or `ASIS3Request`.
+If you want to enable it, point to the podspec in this repo and register the hook before starting Nocilla, like this:
+
+```ruby
+pod 'Nocilla', :podspec => 'https://raw.github.com/luisobo/Nocilla/master/Nocilla.podspec'
+```
+
+```objc
+[[LSNocilla sharedInstance] registerHook:[[LSASIHTTPRequestHook alloc] init]];
+[[LSNocilla sharedInstance] start];
+```
 
 ## Installation
-_WIP_ (please, read: You figure it out, and then you tell me)
+### As a [CocoaPod](http://cocoapods.org/)
+Just add this to your Podfile
+```ruby
+pod 'Nocilla'
+```
 
-* Nocilla will be a [CocoaPod](http://cocoapods.org/) soon.
+### Other approaches
 * You should be able to add Nocilla to you source tree. If you are using git, consider using a `git submodule`
 
 ## Usage
@@ -56,6 +71,12 @@ It will return the default response, which is a 200 and an empty body.
 stubRequest(@"GET", @"http://www.google.com");
 ```
 
+#### NEW! Stubbing requests with regular expressions
+```objc
+stubRequest(@"GET", @"^http://(.*?)\.example\.com/v1/dogs\.json".regex);
+```
+
+
 #### Stubbing a request with a particular header
 
 ```objc
@@ -80,6 +101,14 @@ withHeaders(@{@"Accept": @"application/json", @"X-CUSTOM-HEADER": @"abcf2fbc6abg
 withBody(@"{\"name\":\"foo\"}");
 ```
 
+You can also use `NSData` for the request body:
+
+```objc
+stubRequest(@"POST", @"https://api.example.com/dogs.json").
+withHeaders(@{@"Accept": @"application/json", @"X-CUSTOM-HEADER": @"abcf2fbc6abgf"}).
+withBody([@"foo" dataUsingEncoding:NSUTF8StringEncoding]);
+```
+
 #### Returning a specific status code
 ```objc
 stubRequest(@"GET", @"http://www.google.com").andReturn(404);
@@ -102,6 +131,23 @@ withHeaders(@{@"Content-Type": @"application/json"}).
 withBody(@"{\"ok\":true}");
 ```
 
+You can also use `NSData` for the response body:
+
+```objc
+stubRequest(@"GET", @"https://api.example.com/dogs.json").
+andReturn(201).
+withHeaders(@{@"Content-Type": @"application/json"}).
+withBody([@"bar" dataUsingEncoding:NSUTF8StringEncoding]);
+```
+
+#### Returning raw responses recorded with `curl -is`
+`curl -is http://api.example.com/dogs.json > /tmp/example_curl_-is_output.txt`
+
+```objc
+stubRequest(@"GET", @"https://api.example.com/dogs.json").
+andReturnRawResponse([NSData dataWithContentsOfFile:@"/tmp/example_curl_-is_output.txt"]);
+```
+
 #### All together
 ```objc
 stubRequest(@"POST", @"https://api.example.com/dogs.json").
@@ -110,6 +156,16 @@ withBody(@"{\"name\":\"foo\"}").
 andReturn(201).
 withHeaders(@{@"Content-Type": @"application/json"}).
 withBody(@"{\"ok\":true}");
+```
+
+#### NEW! Making a request fail
+This will call the failure handler (callback, delegate... whatever your HTTP client uses) with the specified error.
+
+```objc
+stubRequest(@"POST", @"https://api.example.com/dogs.json").
+withHeaders(@{@"Accept": @"application/json", @"X-CUSTOM-HEADER": @"abcf2fbc6abgf"}).
+withBody(@"{\"name\":\"foo\"}").
+andFailWithError([NSError errorWithDomain:@"foo" code:123 userInfo:nil]);
 ```
 
 ### Unexpected requests
