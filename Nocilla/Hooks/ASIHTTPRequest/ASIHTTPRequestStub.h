@@ -1,3 +1,5 @@
+#import <Foundation/Foundation.h>
+
 @interface ASIHTTPRequestStub : NSObject
 - (NSInteger)stub_responseStatusCode;
 - (NSData *)stub_responseData;

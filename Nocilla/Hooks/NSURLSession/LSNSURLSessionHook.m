@@ -13,17 +13,13 @@
 @implementation LSNSURLSessionHook
 
 - (void)load {
-    // `__NSCFURLSessionConfiguration` no longer exists on iOS 8 and was replaced with `NSURLSessionConfiguration` instead.
-    // Idea was stolen from https://github.com/luisobo/Nocilla/pull/70
-    Class originalClass = NSClassFromString(@"__NSCFURLSessionConfiguration") ?: NSClassFromString(@"NSURLSessionConfiguration");
-    [self swizzleSelector:@selector(protocolClasses) fromClass:originalClass toClass:[self class]];
+    Class cls = NSClassFromString(@"__NSCFURLSessionConfiguration") ?: NSClassFromString(@"NSURLSessionConfiguration");
+    [self swizzleSelector:@selector(protocolClasses) fromClass:cls toClass:[self class]];
 }
 
 - (void)unload {
-    // `__NSCFURLSessionConfiguration` no longer exists on iOS 8 and was replaced with `NSURLSessionConfiguration` instead.
-    // Idea was stolen from https://github.com/luisobo/Nocilla/pull/70
-    Class originalClass = NSClassFromString(@"__NSCFURLSessionConfiguration") ?: NSClassFromString(@"NSURLSessionConfiguration");
-    [self swizzleSelector:@selector(protocolClasses) fromClass:originalClass toClass:[self class]];
+    Class cls = NSClassFromString(@"__NSCFURLSessionConfiguration") ?: NSClassFromString(@"NSURLSessionConfiguration");
+    [self swizzleSelector:@selector(protocolClasses) fromClass:cls toClass:[self class]];
 }
 
 - (void)swizzleSelector:(SEL)selector fromClass:(Class)original toClass:(Class)stub {
