@@ -26,6 +26,10 @@ typedef void (^AndFailWithErrorMethod)(NSError *error);
 @property (nonatomic, strong, readonly) AndReturnRawResponseMethod andReturnRawResponse;
 @property (nonatomic, strong, readonly) AndFailWithErrorMethod andFailWithError;
 
+/***** MT ADDED THIS *****/
+@property (nonatomic, strong, readonly) AndReturnMethod andReturnWithStatusCode;
+/***** END *****/
+
 @end
 
 #ifdef __cplusplus
